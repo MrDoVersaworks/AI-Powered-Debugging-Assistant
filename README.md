@@ -14,8 +14,7 @@ Tech Stack
 •	Regular Expressions (For syntax validation)
 Installation
 1.	Clone the repository:
-2.	git clone https://github.com/YourGitHubUsername/AI-Debugging-Assistant.git
-cd AI-Debugging-Assistant
+2.	git clone (https://github.com/MrDoVersaworks/AI-Powered-Debugging-Assistant/tree/65b3648ed3d201fc967b3f77dd6ac487215a0c44)
 3.	Ensure you have a C++ compiler installed (e.g., g++, clang).
 4.	Compile the program:
 g++ -o debugger assistant.cpp -ltensorflow
