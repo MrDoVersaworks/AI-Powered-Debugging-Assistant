@@ -1,66 +1,124 @@
-// Project 1: AI-Powered Debugging Assistant
-// Tech Stack: C++, TensorFlow, OpenCV, NLP (Natural Language Processing)
-// Role: Developer, Debugging Engineer
-// Overview: Uses AI to analyze C++ code, detect syntax & logical errors, and suggest fixes.
-
 #include <iostream>
 #include <fstream>
-#include <regex>
-#include <string>
+#include <sstream>
 #include <vector>
-#include <tensorflow/c/c_api.h> // TensorFlow integration
+#include <regex>
+#include <opencv2/opencv.hpp>
+#include <tensorflow/c/c_api.h>
+#include <tensorflow/core/platform/env.h>
+#include <tensorflow/core/public/session.h>
+#include <tensorflow/core/protobuf/meta_graph.pb.h>
+#include <tensorflow/core/framework/tensor.h>
+#include <tensorflow/core/framework/types.pb.h>
+#include <clang-c/Index.h>
+#include <nlohmann/json.hpp>
+#include <curl/curl.h>
 
-// Function to read C++ code from a file
-std::string readCodeFromFile(const std::string& filename) {
+using json = nlohmann::json;
+
+// AI-Powered Debugging Assistant for C++ Code
+// Developed using C++, OpenCV, NLP, and TensorFlow
+
+class DebuggingAssistant {
+public:
+    DebuggingAssistant();
+    void analyzeCode(const std::string& filename);
+private:
+    std::vector<std::string> readSourceCode(const std::string& filename);
+    void detectBugsWithClang(const std::string& filename);
+    std::string interpretErrorWithNLP(const std::string& error);
+    void suggestFixes(const std::string& error);
+    tensorflow::Session* loadModel(const std::string& modelPath);
+    std::string analyzeErrorWithOpenAI(const std::string& error);
+};
+
+DebuggingAssistant::DebuggingAssistant() {}
+
+std::vector<std::string> DebuggingAssistant::readSourceCode(const std::string& filename) {
     std::ifstream file(filename);
-    if (!file) {
-        std::cerr << "Error: Cannot open file " << filename << std::endl;
-        return "";
+    std::vector<std::string> codeLines;
+    std::string line;
+    while (std::getline(file, line)) {
+        codeLines.push_back(line);
     }
-    return std::string((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    return codeLines;
 }
 
-// Function to detect syntax errors using regex
-std::vector<std::string> detectSyntaxErrors(const std::string& code) {
-    std::vector<std::regex> errorPatterns = {
-        std::regex("[^;{}]+$"),  // Missing semicolon
-        std::regex("#include\s*<[^>]+>") // Improper include
+void DebuggingAssistant::detectBugsWithClang(const std::string& filename) {
+    CXIndex index = clang_createIndex(0, 0);
+    CXTranslationUnit unit = clang_parseTranslationUnit(index, filename.c_str(), nullptr, 0, nullptr, 0, CXTranslationUnit_None);
+    if (unit == nullptr) {
+        std::cerr << "Error parsing file with Clang." << std::endl;
+        return;
+    }
+    unsigned numDiagnostics = clang_getNumDiagnostics(unit);
+    for (unsigned i = 0; i < numDiagnostics; ++i) {
+        CXDiagnostic diag = clang_getDiagnostic(unit, i);
+        CXString diagString = clang_formatDiagnostic(diag, clang_defaultDiagnosticDisplayOptions());
+        std::cout << "Clang Diagnostic: " << clang_getCString(diagString) << std::endl;
+        suggestFixes(clang_getCString(diagString));
+        clang_disposeString(diagString);
+        clang_disposeDiagnostic(diag);
+    }
+    clang_disposeTranslationUnit(unit);
+    clang_disposeIndex(index);
+}
+
+std::string DebuggingAssistant::interpretErrorWithNLP(const std::string& error) {
+    return analyzeErrorWithOpenAI(error);
+}
+
+void DebuggingAssistant::suggestFixes(const std::string& error) {
+    std::cout << "Suggested Fix: " << interpretErrorWithNLP(error) << "\n";
+}
+
+tensorflow::Session* DebuggingAssistant::loadModel(const std::string& modelPath) {
+    tensorflow::Session* session;
+    tensorflow::Status status = tensorflow::NewSession(tensorflow::SessionOptions(), &session);
+    if (!status.ok()) {
+        std::cerr << "Failed to load TensorFlow model: " << status.ToString() << "\n";
+        return nullptr;
+    }
+    return session;
+}
+
+std::string DebuggingAssistant::analyzeErrorWithOpenAI(const std::string& error) {
+    CURL* curl = curl_easy_init();
+    if (!curl) {
+        return "CURL initialization failed";
+    }
+    std::string response;
+    curl_easy_setopt(curl, CURLOPT_URL, "https://api.openai.com/v1/chat/completions");
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, [](char* ptr, size_t size, size_t nmemb, std::string* data) {
+        data->append(ptr, size * nmemb);
+        return size * nmemb;
+    });
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+    struct curl_slist* headers = nullptr;
+    headers = curl_slist_append(headers, "Content-Type: application/json");
+    headers = curl_slist_append(headers, "Authorization: Bearer YOUR_API_KEY");
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    json payload = {
+        {"model", "gpt-4"},
+        {"messages", {{{"role", "user"}, {"content", error}}}}
     };
-    
-    std::vector<std::string> errors;
-    for (const auto& pattern : errorPatterns) {
-        if (std::regex_search(code, pattern)) {
-            errors.push_back("Possible syntax issue detected!");
-        }
-    }
-    return errors;
+    std::string jsonData = payload.dump();
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonData.c_str());
+    CURLcode res = curl_easy_perform(curl);
+    curl_easy_cleanup(curl);
+    return response;
 }
 
-// Function to analyze code using AI
-std::string analyzeWithAI(const std::string& code) {
-    // Simulating AI analysis (TensorFlow model integration required)
-    return "AI Analysis: Code follows general best practices, but optimization needed.";
+void DebuggingAssistant::analyzeCode(const std::string& filename) {
+    detectBugsWithClang(filename);
 }
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << " <source_file.cpp>" << std::endl;
+        std::cerr << "Usage: ./debug_assistant <source_file.cpp>\n";
         return 1;
     }
-    
-    std::string filename = argv[1];
-    std::string code = readCodeFromFile(filename);
-    if (code.empty()) return 1;
-    
-    std::vector<std::string> errors = detectSyntaxErrors(code);
-    if (!errors.empty()) {
-        for (const auto& error : errors) {
-            std::cout << error << std::endl;
-        }
-    } else {
-        std::cout << "No syntax errors detected!" << std::endl;
-    }
-    
-    std::cout << analyzeWithAI(code) << std::endl;
+    DebuggingAssistant assistant;
+    assistant.analyzeCode(argv[1]);
     return 0;
 }
