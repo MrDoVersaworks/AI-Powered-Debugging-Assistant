@@ -23,7 +23,7 @@ Ensure you have the following dependencies installed:
 •	cURL (sudo apt install libcurl4-openssl-dev)
 •	nlohmann/json (sudo apt install nlohmann-json3-dev)
 Cloning the Repository
-(https://github.com/MrDoVersaworks/AI-Powered-Debugging-Assistant/tree/65b3648ed3d201fc967b3f77dd6ac487215a0c44)
+https://github.com/MrDoVersaworks/AI-Powered-Debugging-Assistant/blob/c9a3436c51e9c916200a8c6655a15e5ee666bf05/CODE
 Compiling the Code
 g++ -o debug_assistant main.cpp -lclang -lopencv_core -lopencv_highgui -ltensorflow -lcurl -std=c++17
 Usage
